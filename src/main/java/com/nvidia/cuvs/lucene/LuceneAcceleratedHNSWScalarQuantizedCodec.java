@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 package com.nvidia.cuvs.lucene;
@@ -25,7 +25,7 @@ public class LuceneAcceleratedHNSWScalarQuantizedCodec extends FilterCodec {
   private KnnVectorsFormat format;
 
   public LuceneAcceleratedHNSWScalarQuantizedCodec() throws Exception {
-    this(NAME, LuceneProvider.getCodec("101"));
+    this(NAME, LuceneProvider.getCodec("103"));
   }
 
   public LuceneAcceleratedHNSWScalarQuantizedCodec(String name, Codec delegate) {
@@ -35,7 +35,7 @@ public class LuceneAcceleratedHNSWScalarQuantizedCodec extends FilterCodec {
 
   public LuceneAcceleratedHNSWScalarQuantizedCodec(AcceleratedHNSWParams acceleratedHNSWParams)
       throws Exception {
-    this(NAME, LuceneProvider.getCodec("101"));
+    this(NAME, LuceneProvider.getCodec("103"));
     initializeFormat(acceleratedHNSWParams);
   }
 

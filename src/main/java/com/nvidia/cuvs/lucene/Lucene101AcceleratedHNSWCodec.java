@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 package com.nvidia.cuvs.lucene;
@@ -30,7 +30,7 @@ public class Lucene101AcceleratedHNSWCodec extends FilterCodec {
    * @throws Exception
    */
   public Lucene101AcceleratedHNSWCodec() throws Exception {
-    this(NAME, LuceneProvider.getCodec("101"));
+    this(NAME, LuceneProvider.getCodec("103"));
   }
 
   /**
@@ -52,7 +52,7 @@ public class Lucene101AcceleratedHNSWCodec extends FilterCodec {
    */
   public Lucene101AcceleratedHNSWCodec(AcceleratedHNSWParams acceleratedHNSWParams)
       throws Exception {
-    this(NAME, LuceneProvider.getCodec("101"));
+    this(NAME, LuceneProvider.getCodec("103"));
     initializeFormat(acceleratedHNSWParams);
   }
 

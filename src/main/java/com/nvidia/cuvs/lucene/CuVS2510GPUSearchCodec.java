@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 package com.nvidia.cuvs.lucene;
@@ -29,7 +29,7 @@ public class CuVS2510GPUSearchCodec extends FilterCodec {
    * @throws Exception
    */
   public CuVS2510GPUSearchCodec() throws Exception {
-    this(NAME, LuceneProvider.getCodec("101"));
+    this(NAME, LuceneProvider.getCodec("103"));
     initializeFormat(new GPUSearchParams.Builder().build());
   }
 
@@ -53,7 +53,7 @@ public class CuVS2510GPUSearchCodec extends FilterCodec {
    * @throws Exception Exception raised when initializing the codec
    */
   public CuVS2510GPUSearchCodec(GPUSearchParams params) throws Exception {
-    this(NAME, LuceneProvider.getCodec("101"));
+    this(NAME, LuceneProvider.getCodec("103"));
     initializeFormat(params);
   }
 

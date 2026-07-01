@@ -40,13 +40,14 @@ import org.apache.lucene.index.SegmentReadState;
 import org.apache.lucene.index.VectorEncoding;
 import org.apache.lucene.index.VectorSimilarityFunction;
 import org.apache.lucene.internal.hppc.IntObjectHashMap;
+import org.apache.lucene.search.AcceptDocs;
 import org.apache.lucene.search.KnnCollector;
 import org.apache.lucene.store.ChecksumIndexInput;
+import org.apache.lucene.store.DataAccessHint;
 import org.apache.lucene.store.DataInput;
 import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.IOContext.Context;
 import org.apache.lucene.store.IndexInput;
-import org.apache.lucene.store.ReadAdvice;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.hnsw.IntToIntFunction;
@@ -111,7 +112,7 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
       } finally {
         CodecUtil.checkFooter(meta, priorException);
       }
-      var ioContext = state.context.withReadAdvice(ReadAdvice.SEQUENTIAL);
+      var ioContext = state.context.withHints(DataAccessHint.SEQUENTIAL);
       cuvsIndexInput = openCuVSInput(state, versionMeta, ioContext);
       /*
        * Only load indexes on the GPU when this reader is opening for searches.
@@ -396,12 +397,14 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
    * Returns the k nearest neighbor documents using cuVS's CAGRA or brute force algorithm for this field, to the given vector.
    */
   @Override
-  public void search(String field, float[] target, KnnCollector knnCollector, Bits acceptDocs)
+  public void search(String field, float[] target, KnnCollector knnCollector, AcceptDocs acceptDocs)
       throws IOException {
     var fieldEntry = getFieldEntry(field, VectorEncoding.FLOAT32);
     if (fieldEntry.count() == 0 || knnCollector.k() == 0) {
       return;
     }
+
+    final Bits acceptDocsBits = acceptDocs == null ? null : acceptDocs.bits();
 
     var fieldNumber = fieldInfos.fieldInfo(field).number;
     GPUIndex cuvsIndex = cuvsIndices != null ? cuvsIndices.get(fieldNumber) : null;
@@ -410,12 +413,12 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
     }
 
     final FloatVectorValues rawValues = flatVectorsReader.getFloatVectorValues(field);
-    final Bits acceptedOrds = rawValues.getAcceptOrds(acceptDocs);
+    final Bits acceptedOrds = rawValues.getAcceptOrds(acceptDocsBits);
     BitSet[] mask = null;
     int maskLength = 0;
     int topK = knnCollector.k();
 
-    if (acceptDocs != null) {
+    if (acceptDocsBits != null) {
       mask = new BitSet[1]; // As there is only one query "target"
       mask[0] = new BitSet(acceptedOrds.length());
       /*
@@ -461,7 +464,7 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
         builder.addVector(target);
         CuVSMatrix queryVector = builder.build();
 
-        if (acceptDocs != null) {
+        if (acceptDocsBits != null) {
           query =
               new CagraQuery.Builder(getCuVSResourcesInstance())
                   .withTopK(topK)
@@ -483,7 +486,7 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
         assert bruteforceIndex != null;
         BruteForceQuery query = null;
         float[][] queryVector = new float[][] {target};
-        if (acceptDocs != null) {
+        if (acceptDocsBits != null) {
           query =
               new BruteForceQuery.Builder(getCuVSResourcesInstance())
                   .withQueryVectors(queryVector)
@@ -531,7 +534,7 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
    * This is not supported.
    */
   @Override
-  public void search(String field, byte[] target, KnnCollector knnCollector, Bits acceptDocs)
+  public void search(String field, byte[] target, KnnCollector knnCollector, AcceptDocs acceptDocs)
       throws IOException {
     throw new UnsupportedOperationException("Byte vectors are not currently supported");
   }
