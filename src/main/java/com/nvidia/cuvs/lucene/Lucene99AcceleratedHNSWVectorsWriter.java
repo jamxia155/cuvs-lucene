@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 package com.nvidia.cuvs.lucene;
@@ -158,7 +158,12 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
       writeSingleVectorGraph(fieldInfo, vectors);
       return;
     }
+    long ts = StageTimers.start();
     CuVSMatrix dataset = Utils.createFloatMatrix(vectors, fieldInfo.getVectorDimension());
+    StageTimers.stop(
+        "matrix-assembly [CPU/PCIe]",
+        ts,
+        (long) vectors.size() * fieldInfo.getVectorDimension() * Float.BYTES);
     writeFieldInternal(fieldInfo, dataset);
   }
 
@@ -185,15 +190,21 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
       return;
     }
     try {
+      long graphBytes = (long) size * acceleratedHNSWParams.getGraphdegree() * Integer.BYTES;
       CagraIndexParams params =
           CagraIndexParamsFactory.create(acceleratedHNSWParams, dataset.size(), dataset.columns());
+      long ts = StageTimers.start();
       CagraIndex cagraIndex =
           CagraIndex.newBuilder(getCuVSResourcesInstance())
               .withDataset(dataset)
               .withIndexParams(params)
               .build();
+      StageTimers.stop("cagra-build [GPU]", ts);
+      ts = StageTimers.start();
       CuVSMatrix adjacencyListMatrix = cagraIndex.getGraph();
+      StageTimers.stop("graph-fetch [PCIe]", ts, graphBytes);
       int dimensions = fieldInfo.getVectorDimension();
+      ts = StageTimers.start();
       GPUBuiltHnswGraph hnswGraph =
           createMultiLayerHnswGraph(
               fieldInfo,
@@ -204,8 +215,11 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
               acceleratedHNSWParams.getGraphdegree(),
               params,
               QuantizationType.NONE);
+      StageTimers.stop("hnsw-convert [CPU]", ts);
       long vectorIndexOffset = hnswVectorIndex.getFilePointer();
+      ts = StageTimers.start();
       int[][] graphLevelNodeOffsets = writeGraph(hnswGraph, hnswVectorIndex);
+      StageTimers.stop("write-graph [CPU/DISK]", ts, graphBytes);
       long vectorIndexLength = hnswVectorIndex.getFilePointer() - vectorIndexOffset;
       writeMeta(
           hnswVectorIndex,
@@ -228,7 +242,17 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
    */
   @Override
   public void flush(int maxDoc, DocMap sortMap) throws IOException {
+    long ts = StageTimers.start();
     flatVectorsWriter.flush(maxDoc, sortMap);
+    long flatWriteNanos = System.nanoTime() - ts;
+    long flatBytes = 0;
+    for (var field : fields) {
+      flatBytes +=
+          (long) field.getFloatVectors().size()
+              * field.fieldInfo().getVectorDimension()
+              * Float.BYTES;
+    }
+    StageTimers.record("flat-write [DISK]", flatWriteNanos, flatBytes);
     for (var field : fields) {
       if (sortMap == null) {
         writeField(field);
@@ -306,6 +330,7 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
    */
   private void vectorBasedMerge(FieldInfo fieldInfo, MergeState mergeState) throws IOException {
     try {
+      long ts = StageTimers.start();
       FloatVectorValues mergedVectors =
           KnnVectorsWriter.MergedVectorValues.mergeFloatVectorValues(fieldInfo, mergeState);
       int size = mergedVectors.size();
@@ -317,6 +342,7 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
         builder.addVector(mergedVectors.vectorValue(it.index()));
       }
       CuVSHostMatrix dataset = builder.build();
+      StageTimers.stop("merge-readback [DISK]", ts, (long) size * dims * Float.BYTES);
       writeFieldInternal(fieldInfo, dataset);
     } catch (Throwable t) {
       Utils.handleThrowable(t);
@@ -328,7 +354,9 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
    */
   @Override
   public void mergeOneField(FieldInfo fieldInfo, MergeState mergeState) throws IOException {
+    long ts = StageTimers.start();
     flatVectorsWriter.mergeOneField(fieldInfo, mergeState);
+    StageTimers.stop("flat-merge [DISK]", ts);
     vectorBasedMerge(fieldInfo, mergeState);
   }
 
