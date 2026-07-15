@@ -239,7 +239,8 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
               acceleratedHNSWParams.getHnswLayers(),
               acceleratedHNSWParams.getGraphdegree(),
               params,
-              QuantizationType.NONE);
+              QuantizationType.NONE,
+              acceleratedHNSWParams.getWriterThreads());
       StageTimers.stop("hnsw-convert [CPU]", ts);
       long vectorIndexOffset = hnswVectorIndex.getFilePointer();
       ts = StageTimers.start();
