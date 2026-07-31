@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -82,7 +82,7 @@ public class AcceleratedHNSWUtils {
    * Creates a multi-layer HNSW graph with dynamic number of layers.
    * M = cagraGraphDegree/2
    * Each layer contains 1/M nodes from the previous layer
-   * Creates layers until the highest layer has <= M nodes
+   * Creates layers until the highest layer has ≤ M nodes
    * <p>
    * Vectors for higher-layer subsets are read directly from the native matrix
    * via {@link CuVSMatrix#getRow(long)} and {@link RowView#toArray(float[])},
