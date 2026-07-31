@@ -193,22 +193,34 @@ public class CagraIndexParamsFactory {
   public static CagraIndexParams create(
       AcceleratedHNSWParams acceleratedHNSWParams, long rows, long dimension) {
     if (acceleratedHNSWParams.getStrategy().equals(AcceleratedHNSWParams.Strategy.HEURISTIC)) {
-      if (rows
-          < ALGO_SWITCH_THRESHOLD) { // TODO: maybe consider making this threshold configurable from
-        // outside later.
-        return getNNDescentParams(
-            acceleratedHNSWParams.getGraphdegree(),
-            acceleratedHNSWParams.getIntermediateGraphDegree(),
-            acceleratedHNSWParams.getWriterThreads(),
-            acceleratedHNSWParams.getNNDescentNumIterations(),
-            acceleratedHNSWParams.getCuvsDistanceType());
-      } else {
+      // By default the algo is chosen by row count (NN_DESCENT below ALGO_SWITCH_THRESHOLD, else
+      // IVF_PQ). An explicit cagraGraphBuildAlgo of IVF_PQ or NN_DESCENT overrides that choice;
+      // AUTO_SELECT (the default) keeps the row-count determination. Either way the params for the
+      // chosen algo are auto-tuned via getIVFPQParams / getNNDescentParams.
+      CagraGraphBuildAlgo algo = acceleratedHNSWParams.getCagraGraphBuildAlgo();
+      boolean useIvfPq;
+      if (algo == CagraGraphBuildAlgo.IVF_PQ) {
+        useIvfPq = true;
+      } else if (algo == CagraGraphBuildAlgo.NN_DESCENT) {
+        useIvfPq = false;
+      } else { // AUTO_SELECT
+        // TODO: maybe consider making this threshold configurable from outside later.
+        useIvfPq = rows >= ALGO_SWITCH_THRESHOLD;
+      }
+      if (useIvfPq) {
         return getIVFPQParams(
             acceleratedHNSWParams.getGraphdegree(),
             acceleratedHNSWParams.getIntermediateGraphDegree(),
             acceleratedHNSWParams.getWriterThreads(),
             rows,
             dimension,
+            acceleratedHNSWParams.getCuvsDistanceType());
+      } else {
+        return getNNDescentParams(
+            acceleratedHNSWParams.getGraphdegree(),
+            acceleratedHNSWParams.getIntermediateGraphDegree(),
+            acceleratedHNSWParams.getWriterThreads(),
+            acceleratedHNSWParams.getNNDescentNumIterations(),
             acceleratedHNSWParams.getCuvsDistanceType());
       }
     } else {
